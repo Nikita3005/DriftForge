@@ -22,16 +22,9 @@ Modern model monitoring usually asks whether a system has already drifted. Drift
 
 ## Why DriftForge?
 
-```mermaid
-flowchart LR
-    A[Real data] --> B[Synthetic contamination]
-    B --> C[Distribution shift]
-    C --> D[Minority / tail damage]
-    D --> E[Aggregate performance drop]
-    C --> F[DriftForge]
-    F --> G[Early warning]
-    G --> H[Intervention window]
-```
+<p align="center">
+  <img src="assets/readme/why_driftforge.svg" alt="Why DriftForge: a path from synthetic contamination to aggregate failure, with an early-warning branch from distribution shift" width="100%">
+</p>
 
 Traditional monitoring: **detect failure**. DriftForge: **estimate warning before failure**.
 
@@ -74,24 +67,9 @@ This is not a claim that DriftForge universally outperforms JS divergence. It hi
 
 ## Experimental Pipeline
 
-```mermaid
-flowchart TD
-    A[Dataset] --> B[Contamination generator]
-    B --> C1[Gaussian]
-    B --> C2[Tail suppression]
-    B --> C3[Class biased]
-    C1 --> D[Train model]
-    C2 --> D
-    C3 --> D
-    D --> E[Performance metrics]
-    D --> F[Distribution metrics]
-    E --> G[Collapse detection]
-    F --> H[Early-warning models]
-    G --> I[Warning lead-time analysis]
-    H --> I
-    I --> J[Cross-dataset validation]
-    J --> K[Ablation study]
-```
+<p align="center">
+  <img src="assets/readme/experimental_pipeline.svg" alt="Experimental pipeline from datasets through contamination, metrics, warning lead time, validation, and ablation" width="100%">
+</p>
 
 ## Results
 
@@ -124,13 +102,9 @@ Removing covariance shift improved ROC-AUC/PR-AUC, while drift-only features imp
 
 ## Why Warning Lead Time Matters
 
-```mermaid
-flowchart LR
-    A[0% contamination] --> B[Warning]
-    B --> C[Intervention window]
-    C --> D[Experimental collapse]
-    D --> E[100% contamination]
-```
+<p align="center">
+  <img src="assets/readme/warning_lead_time.svg" alt="Warning lead time timeline showing warning before experimental collapse" width="100%">
+</p>
 
 `warning_lead_time = collapse_point - first_warning_point`
 Positive lead time means a warning occurs before observed collapse.
