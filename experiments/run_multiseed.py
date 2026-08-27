@@ -22,6 +22,8 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from driftforge.datasets import DATASET_NAMES  # noqa: E402
+from driftforge.synthetic import CONTAMINATION_METHODS  # noqa: E402
 from experiments.run_experiment import run  # noqa: E402
 
 SEEDS = [42, 7, 21, 77, 101, 123, 256, 512, 999, 2026]
@@ -32,6 +34,9 @@ METRIC_COLUMNS = [
     "js_divergence",
     "wasserstein",
     "covariance_shift",
+    "psi",
+    "mmd",
+    "c2st_accuracy",
     "class_entropy",
     "minority_share",
     "early_warning_score",
@@ -55,14 +60,24 @@ def compute_ci95(std: float, n: int) -> float:
     return float(1.96 * std / np.sqrt(n))
 
 
-def run_multiseed_experiment(seeds: list[int] | tuple[int, ...] = SEEDS, recursive: bool = True) -> pd.DataFrame:
+def run_multiseed_experiment(
+    seeds: list[int] | tuple[int, ...] = SEEDS,
+    recursive: bool = True,
+    dataset: str = "digits",
+    contamination_method: str = "gaussian",
+) -> pd.DataFrame:
     """Run the existing contamination experiment for each requested random seed."""
     frames = []
     for seed in seeds:
-        seed_df = run(seed=seed, recursive=recursive).copy()
+        seed_df = run(
+            seed=seed,
+            recursive=recursive,
+            dataset=dataset,
+            contamination_method=contamination_method,
+        ).copy()
         seed_df["seed"] = seed
         seed_df["contamination"] = seed_df["contamination"].round(10)
-        frames.append(seed_df[["seed", "contamination", *METRIC_COLUMNS]])
+        frames.append(seed_df[["dataset", "contamination_method", "seed", "contamination", *METRIC_COLUMNS]])
     return pd.concat(frames, ignore_index=True)
 
 
@@ -82,8 +97,9 @@ def summarize_multiseed_results(observations: pd.DataFrame) -> pd.DataFrame:
         aggregations[f"{metric}_std"] = (metric, _sample_std)
         aggregations[f"{metric}_ci95"] = (metric, _mean_ci95)
 
+    group_columns = [column for column in ("dataset", "contamination_method") if column in observations]
     summary = (
-        observations.groupby("contamination", as_index=False)
+        observations.groupby([*group_columns, "contamination"], as_index=False)
         .agg(**aggregations)
         .sort_values("contamination")
         .reset_index(drop=True)
@@ -104,19 +120,20 @@ def _future_max(values: pd.Series) -> np.ndarray:
 
 def add_drop_and_future_columns(observations: pd.DataFrame) -> pd.DataFrame:
     """Add baseline-referenced performance drops and future-collapse targets."""
-    enriched = observations.sort_values(["seed", "contamination"]).reset_index(drop=True).copy()
-    baseline = enriched.groupby("seed")[["accuracy", "minority_recall"]].transform("first")
+    group_columns = [column for column in ("dataset", "contamination_method", "seed") if column in observations]
+    enriched = observations.sort_values([*group_columns, "contamination"]).reset_index(drop=True).copy()
+    baseline = enriched.groupby(group_columns)[["accuracy", "minority_recall"]].transform("first")
     enriched["baseline_accuracy"] = baseline["accuracy"]
     enriched["baseline_minority_recall"] = baseline["minority_recall"]
     enriched["accuracy_drop"] = enriched["baseline_accuracy"] - enriched["accuracy"]
     enriched["minority_recall_drop"] = enriched["baseline_minority_recall"] - enriched["minority_recall"]
-    enriched["next_accuracy_drop"] = enriched.groupby("seed")["accuracy_drop"].shift(-1)
-    enriched["next_minority_recall_drop"] = enriched.groupby("seed")["minority_recall_drop"].shift(-1)
-    enriched["future_accuracy_drop_max"] = enriched.groupby("seed")["accuracy_drop"].transform(_future_max)
-    enriched["future_minority_recall_drop_max"] = enriched.groupby("seed")["minority_recall_drop"].transform(_future_max)
+    enriched["next_accuracy_drop"] = enriched.groupby(group_columns)["accuracy_drop"].shift(-1)
+    enriched["next_minority_recall_drop"] = enriched.groupby(group_columns)["minority_recall_drop"].shift(-1)
+    enriched["future_accuracy_drop_max"] = enriched.groupby(group_columns)["accuracy_drop"].transform(_future_max)
+    enriched["future_minority_recall_drop_max"] = enriched.groupby(group_columns)["minority_recall_drop"].transform(_future_max)
 
-    group_size = enriched.groupby("seed")["seed"].transform("size")
-    enriched["has_future_observation"] = enriched.groupby("seed").cumcount() < (group_size - 1)
+    group_size = enriched.groupby(group_columns)["seed"].transform("size")
+    enriched["has_future_observation"] = enriched.groupby(group_columns).cumcount() < (group_size - 1)
     enriched["future_collapse"] = (
         enriched["has_future_observation"]
         & (enriched["next_accuracy_drop"] >= COLLAPSE_THRESHOLD)
@@ -336,12 +353,21 @@ def main() -> None:
         action="store_true",
         help="Generate every contamination level from pristine real data.",
     )
+    parser.add_argument("--dataset", choices=DATASET_NAMES, default="digits")
+    parser.add_argument("--contamination-method", choices=CONTAMINATION_METHODS, default="gaussian")
+    parser.add_argument("--seeds", type=int, nargs="+", default=SEEDS)
+    parser.add_argument("--output-dir", type=Path, default=ROOT / "results")
     args = parser.parse_args()
 
-    results_dir = ROOT / "results"
+    results_dir = args.output_dir
     results_dir.mkdir(exist_ok=True)
 
-    observations = run_multiseed_experiment(recursive=not args.non_recursive)
+    observations = run_multiseed_experiment(
+        seeds=args.seeds,
+        recursive=not args.non_recursive,
+        dataset=args.dataset,
+        contamination_method=args.contamination_method,
+    )
     observations.to_csv(results_dir / "multiseed_results.csv", index=False)
 
     summary = summarize_multiseed_results(observations)

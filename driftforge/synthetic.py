@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import numpy as np
 
+CONTAMINATION_METHODS = ("gaussian", "tail_suppression", "class_biased")
+
 
 def _regularized_covariance(X: np.ndarray, eps: float = 1e-3) -> np.ndarray:
     """Return a numerically stable covariance matrix."""
@@ -18,6 +20,7 @@ def gaussian_class_generator(
     y: np.ndarray,
     n_samples: int,
     rng: np.random.Generator,
+    class_probabilities: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Generate synthetic tabular samples with a class-conditional Gaussian model.
@@ -27,7 +30,7 @@ def gaussian_class_generator(
     tails and nonlinear relationships during recursive generation.
     """
     classes, counts = np.unique(y, return_counts=True)
-    probs = counts / counts.sum()
+    probs = counts / counts.sum() if class_probabilities is None else class_probabilities
     sampled_classes = rng.choice(classes, size=n_samples, p=probs)
 
     X_syn = np.empty((n_samples, X.shape[1]), dtype=float)
@@ -46,12 +49,55 @@ def gaussian_class_generator(
     return X_syn, y_syn
 
 
+def _central_class_samples(X: np.ndarray, retention: float) -> np.ndarray:
+    """Keep the central portion of a class as a controlled tail-loss proxy."""
+    if len(X) <= 2:
+        return X
+    center = X.mean(axis=0)
+    distances = np.sum((X - center) ** 2, axis=1)
+    n_keep = max(2, int(np.ceil(len(X) * retention)))
+    return X[np.argsort(distances)[:n_keep]]
+
+
+def tail_suppression_generator(
+    X: np.ndarray,
+    y: np.ndarray,
+    n_samples: int,
+    contamination: float,
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Generate from progressively central class regions to suppress tails."""
+    retention = max(0.25, 1.0 - 0.75 * contamination)
+    classes = np.unique(y)
+    X_core = np.vstack([_central_class_samples(X[y == cls], retention) for cls in classes])
+    y_core = np.concatenate(
+        [np.full(len(_central_class_samples(X[y == cls], retention)), cls, dtype=y.dtype) for cls in classes]
+    )
+    return gaussian_class_generator(X_core, y_core, n_samples, rng)
+
+
+def class_biased_generator(
+    X: np.ndarray,
+    y: np.ndarray,
+    n_samples: int,
+    contamination: float,
+    rng: np.random.Generator,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Progressively favor common classes when sampling synthetic labels."""
+    _, counts = np.unique(y, return_counts=True)
+    base_probabilities = counts / counts.sum()
+    probabilities = base_probabilities ** (1.0 + 2.0 * contamination)
+    probabilities /= probabilities.sum()
+    return gaussian_class_generator(X, y, n_samples, rng, class_probabilities=probabilities)
+
+
 def contaminate_training_set(
     X_real: np.ndarray,
     y_real: np.ndarray,
     contamination: float,
     rng: np.random.Generator,
     recursive_source: tuple[np.ndarray, np.ndarray] | None = None,
+    method: str = "gaussian",
 ) -> tuple[np.ndarray, np.ndarray, tuple[np.ndarray, np.ndarray]]:
     """
     Replace a fraction of the training set with synthetic samples.
@@ -82,9 +128,18 @@ def contaminate_training_set(
         X_keep = np.empty((0, X_real.shape[1]))
         y_keep = np.empty((0,), dtype=y_real.dtype)
 
+    if method not in CONTAMINATION_METHODS:
+        supported = ", ".join(CONTAMINATION_METHODS)
+        raise ValueError(f"Unknown contamination method {method!r}. Supported methods: {supported}.")
+
     source_X, source_y = recursive_source if recursive_source is not None else (X_real, y_real)
     if n_syn > 0:
-        X_syn, y_syn = gaussian_class_generator(source_X, source_y, n_syn, rng)
+        if method == "gaussian":
+            X_syn, y_syn = gaussian_class_generator(source_X, source_y, n_syn, rng)
+        elif method == "tail_suppression":
+            X_syn, y_syn = tail_suppression_generator(source_X, source_y, n_syn, contamination, rng)
+        else:
+            X_syn, y_syn = class_biased_generator(source_X, source_y, n_syn, contamination, rng)
     else:
         X_syn = np.empty((0, X_real.shape[1]))
         y_syn = np.empty((0,), dtype=y_real.dtype)
