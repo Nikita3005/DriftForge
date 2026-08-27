@@ -1,6 +1,16 @@
 # DriftForge
 
-**Early detection of model degradation under synthetic-data contamination.**
+**Early warning for model degradation under synthetic-data contamination**
+
+Research question:
+
+> Can dataset-level statistical signals reveal synthetic-data-induced degradation before aggregate model accuracy substantially deteriorates?
+
+## Key result
+
+In this 10-seed, simulated-contamination experiment, the mean early-warning score first reached 40 at **50% contamination**. The mean minority-recall drop first reached the project's experimental 3-percentage-point threshold at **60%**, while mean aggregate accuracy first reached that threshold at **80%**. The 3-percentage-point threshold is a project-specific experimental definition, not a universal definition of model collapse.
+
+![DriftForge multi-seed performance](results/multiseed_performance.png)
 
 DriftForge is a compact research prototype for testing whether dataset-level warning signals can rise before downstream model performance clearly deteriorates. The current MVP uses the scikit-learn Digits dataset because it is local, multiclass, reproducible, and requires no external downloads or API keys.
 
@@ -8,7 +18,7 @@ The original single-seed experiment remains available in `experiments/run_experi
 
 ## Research question
 
-> Can dataset-level statistical signals detect or forecast synthetic-data-induced model degradation before conventional aggregate model metrics substantially deteriorate?
+The experiment evaluates the question stated above under one dataset, a simulated contamination mechanism, and the project's specified metrics and threshold.
 
 ## Hypotheses
 
@@ -94,8 +104,6 @@ The exploratory collapse predictor uses grouped cross-validation by seed and a l
 
 These predictor results are encouraging but still exploratory because they come from one dataset, one contamination mechanism, and only 10 seeds.
 
-![DriftForge multi-seed performance](results/multiseed_performance.png)
-
 The plot is designed to make it easy to inspect whether minority-class performance deteriorates before aggregate accuracy reaches the experimental collapse threshold.
 
 ## Output
@@ -166,7 +174,7 @@ driftforge/
 
 ## What makes this a research prototype rather than a demo?
 
-The output is not predetermined. DriftForge asks whether statistical signals consistently anticipate downstream degradation. The important follow-up is to repeat the experiment across datasets, generators, seeds, models, contamination mechanisms, and subgroup definitions, then learn a calibrated collapse-risk estimator rather than hard-coding one.
+The output is not predetermined. DriftForge asks whether statistical signals are associated with downstream degradation under this experimental setup. The important follow-up is to repeat the experiment across datasets, generators, seeds, models, contamination mechanisms, and subgroup definitions, then learn and validate a calibrated collapse-risk estimator rather than hard-coding one.
 
 ## Next experiments
 
