@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use DriftForge, please cite this software artifact."
+title: "DriftForge"
+type: software
+authors:
+  - family-names: Gajbhiye
+    given-names: Nikita
+repository-code: "https://github.com/Nikita3005/DriftForge"
+abstract: "An exploratory benchmark for early warning of synthetic-data-induced model degradation."
