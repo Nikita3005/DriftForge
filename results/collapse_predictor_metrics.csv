@@ -1,0 +1,2 @@
+model,target,threshold_accuracy_drop,dataset_rows,n_seeds,positive_rows,negative_rows,positive_rate,cv_strategy,cv_folds,roc_auc,precision,recall,f1,features,note
+logistic_regression,future_collapse,0.03,100,10,26,74,0.26,StratifiedGroupKFold by seed,5,0.9677754677754677,0.7741935483870968,0.9230769230769231,0.8421052631578947,"js_divergence,wasserstein,covariance_shift,class_entropy,minority_share,early_warning_score,contamination","Exploratory only: one dataset, 10 seeds, a heuristic early-warning score, and a project-specific 3-point accuracy-drop threshold."

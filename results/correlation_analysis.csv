@@ -1,0 +1,25 @@
+signal_metric,target_metric,n_observations,pearson_r,pearson_pvalue,spearman_r,spearman_pvalue,note
+js_divergence,accuracy_drop,110,0.9177031500246661,4.184773261558858e-45,0.9286453292579325,2.5361977450907986e-48,Associative only; correlation does not establish causation.
+js_divergence,minority_recall_drop,110,0.5508070772514077,4.5297825426659655e-10,0.5363667967666574,1.5474751550073432e-09,Associative only; correlation does not establish causation.
+js_divergence,next_accuracy_drop,100,0.9134542536555196,4.762130550646253e-40,0.9163790655952245,9.491707090662503e-41,Associative only; correlation does not establish causation.
+js_divergence,next_minority_recall_drop,100,0.5171661881408686,3.6067234848545116e-08,0.49112666158841706,2.1250557534789314e-07,Associative only; correlation does not establish causation.
+wasserstein,accuracy_drop,110,0.8838844875304647,1.9666742373982437e-37,0.9132594092709571,6.348091557234447e-44,Associative only; correlation does not establish causation.
+wasserstein,minority_recall_drop,110,0.5362260765137488,1.565669005827998e-09,0.5196076176346112,5.999827978658472e-09,Associative only; correlation does not establish causation.
+wasserstein,next_accuracy_drop,100,0.8767272227230795,6.459596028434886e-33,0.8928650633677948,9.97294001527419e-36,Associative only; correlation does not establish causation.
+wasserstein,next_minority_recall_drop,100,0.4910962771429415,2.1292772820334977e-07,0.4583000467960426,1.628166654775676e-06,Associative only; correlation does not establish causation.
+covariance_shift,accuracy_drop,110,0.7810071486239097,8.095445753368876e-24,0.8433045256775415,6.791105431057794e-31,Associative only; correlation does not establish causation.
+covariance_shift,minority_recall_drop,110,0.43072615528291874,2.639516961565732e-06,0.41167052106435437,7.892235524374333e-06,Associative only; correlation does not establish causation.
+covariance_shift,next_accuracy_drop,100,0.7561897849491942,9.39588483256966e-20,0.8400606712239955,8.90632701646357e-28,Associative only; correlation does not establish causation.
+covariance_shift,next_minority_recall_drop,100,0.38444416408212534,7.848121821273062e-05,0.38195972093721614,8.805838905623173e-05,Associative only; correlation does not establish causation.
+class_entropy,accuracy_drop,110,-0.7408387022985952,2.2133994619345997e-20,-0.7902443473839028,1.0325748085857405e-24,Associative only; correlation does not establish causation.
+class_entropy,minority_recall_drop,110,-0.5384460775327341,1.3012007411205735e-09,-0.5306814621564674,2.4709921258256927e-09,Associative only; correlation does not establish causation.
+class_entropy,next_accuracy_drop,100,-0.7358245386725049,2.775597338285824e-18,-0.7644123898146293,2.1763494781314063e-20,Associative only; correlation does not establish causation.
+class_entropy,next_minority_recall_drop,100,-0.5158789099997841,3.9511151047530725e-08,-0.456782647106745,1.7798951827766017e-06,Associative only; correlation does not establish causation.
+minority_share,accuracy_drop,110,-0.7515454296474436,3.114365481739529e-21,-0.7534353531709341,2.1803681237912845e-21,Associative only; correlation does not establish causation.
+minority_share,minority_recall_drop,110,-0.5361846761365336,1.5710607047778223e-09,-0.5229750000584483,4.5966802234987184e-09,Associative only; correlation does not establish causation.
+minority_share,next_accuracy_drop,100,-0.7219505874369289,2.343142542276452e-17,-0.713361645019932,8.237519165620075e-17,Associative only; correlation does not establish causation.
+minority_share,next_minority_recall_drop,100,-0.5017572487808903,1.0486723255764838e-07,-0.44766670709957107,3.012945119989656e-06,Associative only; correlation does not establish causation.
+early_warning_score,accuracy_drop,110,0.8713607662774591,3.511186526962454e-35,0.8855331229155734,9.508105872738723e-38,Associative only; correlation does not establish causation.
+early_warning_score,minority_recall_drop,110,0.5197601631702021,5.9282284264925885e-09,0.5049170783245859,1.8553325230747602e-08,Associative only; correlation does not establish causation.
+early_warning_score,next_accuracy_drop,100,0.8511177630383533,3.5250237676333906e-29,0.8666048564335072,2.395508402724013e-31,Associative only; correlation does not establish causation.
+early_warning_score,next_minority_recall_drop,100,0.4708496214856455,7.663762688164087e-07,0.44948582868052106,2.715807614563974e-06,Associative only; correlation does not establish causation.

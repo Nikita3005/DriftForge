@@ -2,109 +2,166 @@
 
 **Early detection of model degradation under synthetic-data contamination.**
 
-DriftForge is a compact research prototype for testing a simple question:
+DriftForge is a compact research prototype for testing whether dataset-level warning signals can rise before downstream model performance clearly deteriorates. The current MVP uses the scikit-learn Digits dataset because it is local, multiclass, reproducible, and requires no external downloads or API keys.
 
-> **Can dataset-level statistical warning signals rise before downstream model performance visibly degrades?**
+The original single-seed experiment remains available in `experiments/run_experiment.py`. This repository now also includes a 10-seed repeated experiment with confidence intervals, threshold analysis, correlation analysis, and an exploratory collapse predictor in `experiments/run_multiseed.py`.
 
-As synthetic data increasingly enters training corpora, a dataset can become progressively less representative of the real distribution even while aggregate model metrics still look healthy. DriftForge creates controlled mixtures of real and synthetic tabular data, measures distributional warning signals, trains the same downstream model at each contamination level, and compares those signals with held-out real-world performance.
+## Research question
 
-## Research hypothesis
+> Can dataset-level statistical signals detect or forecast synthetic-data-induced model degradation before conventional aggregate model metrics substantially deteriorate?
 
-Dataset-level signals such as Jensen-Shannon divergence, Wasserstein distance, covariance shift, class entropy, and minority representation can reveal degradation earlier than aggregate accuracy alone.
+## Hypotheses
 
-## MVP experiment
+- Minority-class performance may degrade before aggregate accuracy.
+- Distributional drift metrics may provide earlier warning than aggregate accuracy.
+- Combining multiple drift signals may better identify high-risk contamination regimes.
 
-The current MVP uses the scikit-learn Digits dataset because it is local, multiclass, reproducible, and requires no API keys or external downloads.
+These are working hypotheses for the current MVP, not proven conclusions.
 
-1. Split the original dataset into a pristine train/test set.
-2. Standardize features using only the real training split.
-3. Generate class-conditional synthetic samples with a Gaussian generator.
-4. Replace 0% to 100% of the training data with synthetic samples.
-5. In recursive mode, each synthetic generation is based on the previous mixed generation, creating a simple feedback loop.
-6. Train the same Random Forest classifier at every contamination level.
-7. Evaluate on the untouched real test set.
-8. Compare model performance with dataset-level drift metrics.
+## Experimental design
 
-## Metrics
+The current experiment:
 
-**Model metrics**
+1. Splits the Digits dataset into a pristine train/test set.
+2. Standardizes features using only the real training split.
+3. Generates class-conditional synthetic tabular samples with a Gaussian generator.
+4. Replaces 0% to 100% of the training data with synthetic samples in 10-point increments.
+5. Supports recursive synthetic generation, where each later synthetic batch is fit on the previous mixed generation rather than only on pristine real data.
+6. Trains the same Random Forest classifier at every contamination level.
+7. Evaluates on the untouched real test set.
+8. Repeats the full recursive experiment across 10 seeds:
+
+```python
+SEEDS = [42, 7, 21, 77, 101, 123, 256, 512, 999, 2026]
+```
+
+For each contamination level, DriftForge reports:
+
 - Accuracy
 - Macro F1
-- Minority-class recall
-
-**Dataset warning signals**
-- Mean Jensen-Shannon divergence
-- Mean Wasserstein distance
-- Relative covariance shift
+- Minority recall
+- Jensen-Shannon divergence
+- Wasserstein distance
+- Covariance shift
 - Class entropy
-- Minority-class share
-- DriftForge early-warning score
+- Minority share
+- Early-warning score
 
-The early-warning score in v0.1 is intentionally transparent and heuristic. A later version should learn the relationship between dataset statistics and future model degradation across multiple datasets and seeds.
+The multi-seed summary reports the mean, sample standard deviation, and 95% confidence interval using:
 
-## Quick start
-
-```bash
-python -m venv .venv
-source .venv/bin/activate       # Windows: .venv\\Scripts\\activate
-pip install -r requirements.txt
-python experiments/run_experiment.py
+```text
+CI95 = 1.96 * std / sqrt(n)
 ```
 
-Optional non-recursive baseline:
+The current project also uses an **experimental** collapse threshold of a 3 percentage point accuracy drop relative to the 0% contamination baseline. This threshold is project-specific and should not be treated as a universal definition of model collapse.
 
-```bash
-python experiments/run_experiment.py --non-recursive
-```
+## Results
 
-Run tests:
+The following results come from the local multi-seed run saved on **August 28, 2026** in `results/`.
 
-```bash
-pytest -q
-```
+Across 10 seeds, mean baseline accuracy at 0% contamination was **97.13%** and mean baseline minority recall was **93.46%**. The early-warning score crossed **40** at **50% contamination**, mean minority recall reached the project's 3-point drop threshold at **60% contamination**, and mean accuracy did not reach the same 3-point drop threshold until **80% contamination**.
 
-## Reference run (seed 42)
+Selected multi-seed summary points:
 
-The checked-in MVP currently produces the following reference behavior on the untouched real test set:
+| Synthetic contamination | Mean accuracy (95% CI) | Mean minority recall (95% CI) | Mean early-warning score |
+|---:|---:|---:|---:|
+| 0% | 97.13% +/- 0.36 pp | 93.46% +/- 2.40 pp | 0.00 |
+| 50% | 95.61% +/- 0.41 pp | 91.15% +/- 2.71 pp | 46.49 |
+| 60% | 95.09% +/- 0.62 pp | 88.46% +/- 3.97 pp | 54.08 |
+| 80% | 93.67% +/- 0.84 pp | 87.31% +/- 3.56 pp | 72.66 |
+| 100% | 90.81% +/- 0.78 pp | 86.15% +/- 5.02 pp | 99.03 |
 
-| Synthetic contamination | Accuracy | Macro F1 | Minority-class recall | Early-warning score |
-|---:|---:|---:|---:|---:|
-| 0% | 96.85% | 96.81% | 86.54% | 0.0 |
-| 50% | 94.07% | 94.10% | 84.62% | 39.6 |
-| 70% | 93.33% | 93.23% | 71.15% | 54.1 |
-| 100% | 90.56% | 90.53% | 71.15% | 100.0 |
+Threshold analysis from `results/early_warning_analysis.csv`:
 
-This is a **single-seed proof of concept**, not evidence of a general law. The next research step is repeated-seed evaluation with confidence intervals and multiple datasets/generators.
+- First mean early-warning score >= 40: **50% contamination**
+- First mean early-warning score >= 50: **60% contamination**
+- First mean early-warning score >= 60: **70% contamination**
+- First mean minority-recall drop >= 0.03: **60% contamination**
+- First mean accuracy drop >= 0.03: **80% contamination**
+
+Correlation analysis from `results/correlation_analysis.csv` showed strong **associations** between drift metrics and both current and next-step degradation, without implying causation. For example:
+
+- Pearson correlation between `js_divergence` and current `accuracy_drop`: **0.918**
+- Pearson correlation between `early_warning_score` and next-step `accuracy_drop`: **0.851**
+- Pearson correlation between `wasserstein` and next-step `accuracy_drop`: **0.877**
+
+The exploratory collapse predictor uses grouped cross-validation by seed and a logistic regression model to predict whether the **next contamination step** will cross the project's 3-point accuracy-drop threshold. On this MVP dataset it achieved:
+
+- ROC-AUC: **0.968**
+- Precision: **0.774**
+- Recall: **0.923**
+- F1: **0.842**
+
+These predictor results are encouraging but still exploratory because they come from one dataset, one contamination mechanism, and only 10 seeds.
+
+![DriftForge multi-seed performance](results/multiseed_performance.png)
+
+The plot is designed to make it easy to inspect whether minority-class performance deteriorates before aggregate accuracy reaches the experimental collapse threshold.
 
 ## Output
 
-The experiment writes:
+The single-seed and multi-seed runs write:
 
 ```text
 results/
-├── experiment_results.csv
-├── performance_vs_contamination.png
-├── warning_signals.png
-└── warning_vs_accuracy_drop.png
+|-- experiment_results.csv
+|-- performance_vs_contamination.png
+|-- warning_signals.png
+|-- warning_vs_accuracy_drop.png
+|-- multiseed_results.csv
+|-- multiseed_summary.csv
+|-- multiseed_performance.png
+|-- early_warning_analysis.csv
+|-- correlation_analysis.csv
+`-- collapse_predictor_metrics.csv
+```
+
+## Limitations
+
+- The MVP currently studies one dataset and effectively one domain.
+- The contamination mechanism is simulated with a simple Gaussian class-conditional generator.
+- Ten seeds provide a more credible estimate than a single-seed prototype, but they are still not exhaustive.
+- The current early-warning score is heuristic and hand-crafted.
+- Correlation analysis does not establish causation.
+- The project's 3-point collapse threshold is experimental and project-specific.
+
+## Reproducibility
+
+Create and activate a virtual environment, install dependencies, then run:
+
+```powershell
+python experiments\run_experiment.py
+python experiments\run_multiseed.py
+python -m pytest -q
+```
+
+If you are starting from scratch on Windows:
+
+```powershell
+python -m venv ..\.venv
+..\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
 ```
 
 ## Repository structure
 
 ```text
 driftforge/
-├── driftforge/
-│   ├── __init__.py
-│   ├── metrics.py
-│   ├── scoring.py
-│   └── synthetic.py
-├── experiments/
-│   └── run_experiment.py
-├── tests/
-│   └── test_metrics.py
-├── results/
-├── requirements.txt
-├── LICENSE
-└── README.md
+|-- driftforge/
+|   |-- __init__.py
+|   |-- metrics.py
+|   |-- scoring.py
+|   `-- synthetic.py
+|-- experiments/
+|   |-- run_experiment.py
+|   `-- run_multiseed.py
+|-- tests/
+|   |-- test_metrics.py
+|   `-- test_multiseed.py
+|-- results/
+|-- requirements.txt
+|-- LICENSE
+`-- README.md
 ```
 
 ## What makes this a research prototype rather than a demo?
@@ -113,21 +170,11 @@ The output is not predetermined. DriftForge asks whether statistical signals con
 
 ## Next experiments
 
-- Repeat each contamination level across 20+ random seeds and report confidence intervals.
-- Add tabular generators such as CTGAN or Gaussian copulas.
-- Add explicit tail erosion and minority-class under-generation.
+- Add more datasets and domains.
 - Compare recursive generation against one-shot synthetic mixing.
-- Measure calibration error and subgroup performance.
-- Train a model to predict future performance drop from dataset-level signals.
-- Test whether an adaptive real-data injection policy can prevent collapse.
-
-## Research direction
-
-A stronger version of DriftForge should answer:
-
-> Given only the current training dataset and its history, can we estimate the probability that downstream performance or subgroup performance will deteriorate beyond a predefined threshold in the next generation?
-
-That turns the project from a drift dashboard into a predictive data-science problem.
+- Add stronger synthetic generators such as CTGAN or Gaussian copulas.
+- Measure subgroup fairness and calibration effects.
+- Replace the heuristic early-warning score with a learned and calibrated risk model.
 
 ## License
 
